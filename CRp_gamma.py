@@ -70,6 +70,22 @@ def velocity(E_kin, rest_mass):
     v = c*beta
     return v, beta, gamma
 
+def integrate(f, x_min, x_max, N_pts = 500):
+    g = np.vectorize(f)
+    if x_min==x_max:
+        int_value=0
+    else:
+        if x_min == 0:
+            z_min = np.log10(1e-50)
+        else:
+            z_min = np.log10(x_min)
+        z_max = np.log10(x_max)
+        int_range = np.log(np.logspace(z_min, z_max, N_pts))
+        mid_points = (int_range[:-1]+int_range[1:])/2
+        y_mid_points = np.exp(mid_points)*g(np.exp(mid_points))
+        int_value = np.sum(y_mid_points*np.diff(int_range))
+    return int_value
+
 
 def E_CM_squared(T_p):
     """
@@ -420,11 +436,13 @@ def gamma_diff_sigma(T_p, E_gamma, enh=True):
 #%% Gamma-ray flux
 
 def Phi_pp_gamma(E_gamma, J_CRp, n):
+    # E_gamma in MeV
     def integrand(T):
+        # T in MeV
         g_diff_sigma = gamma_diff_sigma(T, E_gamma, False) # in cm2 MeV-1
         f_in = J_CRp(T) # in MeV-1 cm-2 s-1 sr-1
-        return g_diff_sigma*f_in # MeV^-2 s^-1 sr^-1
+        return g_diff_sigma * f_in # MeV-2 s-1 sr-1
     T_p_min, T_p_max = T_p_ext(E_gamma)
-    integ = quad(integrand, T_p_min, T_p_max) # MeV-1 s-1 sr-1
-    emi = 4*pi*n*integ # MeV^-1 cm^-3 s^-1 
+    integ = integrate(integrand, T_p_min, T_p_max) # MeV-1 s-1 sr-1
+    emi = 4 * np.pi * n * integ # MeV^-1 cm^-3 s^-1 
     return emi

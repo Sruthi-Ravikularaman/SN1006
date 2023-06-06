@@ -25,6 +25,23 @@ m_el = 9.1094e-28 #g
 r_0 = e**2/(m_el*(c**2)) # cm electron radius
 
 
+def integrate(f, x_min, x_max, N_pts = 500):
+    g = np.vectorize(f)
+    if x_min==x_max:
+        int_value=0
+    else:
+        if x_min == 0:
+            z_min = np.log10(1e-50)
+        else:
+            z_min = np.log10(x_min)
+        z_max = np.log10(x_max)
+        int_range = np.log(np.logspace(z_min, z_max, N_pts))
+        mid_points = (int_range[:-1]+int_range[1:])/2
+        y_mid_points = np.exp(mid_points)*g(np.exp(mid_points))
+        int_value = np.sum(y_mid_points*np.diff(int_range))
+    return int_value
+
+
 #%% Synchroton radiation
 
 def syn_photon_E(T_e):
@@ -42,13 +59,14 @@ def R(x):
     return num/sqrt(den_2)
 
 
-def Phi_syn(E, J_CRe, n):
+def Phi_syn(E, J_CRe, B_mG):
     def integrand(T_e):
         x = E/E_c(T_e)
         J_val = J_CRe(T_e) # MeV-1 cm-3
         R_val = R(x)
         return J_val*R_val  #MeV-1 cm-3
-    integ = quad(integrand, 1e2, 1e20) #cm-3
+    integ = integrate(integrand, 1e2, 1e12) #cm-3
+    e3B_0_MeV = B_mG * 4.3e-20
     pre = (sqrt(3)/(2*pi))*(e3B_0_MeV/m_e)*(1/(h_bar*E)) #MeV-1 s-1
     emi = pre * integ
     return emi #MeV-1 s-1 cm-3
@@ -76,7 +94,7 @@ def Phi_e_rel_brem(E, J_CRe, n):
         sig = sigma_scat_diff(E, T_e) # in cm2 MeV-1
         F = J_CRe(T_e) # in MeV-1 cm-3
         return sig * F # in cm-1 MeV-2
-    integ = quad(integrand, E, 1e9) # in MeV-1 cm-1
+    integ = integrate(integrand, E, 1e12) # in MeV-1 cm-1
     emi = n * c * integ  # MeV-1 cm-3 s-1
     return emi
 
@@ -146,7 +164,7 @@ def N_iso_ph_N(E_ph, J_CRe, T, k_dil):
         return N_iso(E_ph, E_e, T, k_dil) * J_CRe(E_e) #  MeV-2 cm-3 s-1
     E_e_min = E_ph
     E_e_max = 1e12 #MeV
-    return quad(integrand, E_e_min, E_e_max) # MeV-1 s-1
+    return integrate(integrand, E_e_min, E_e_max) # MeV-1 cm-3 s-1
 
 
 def Phi_e_IC(E, J_CRe, T, k_dil):
