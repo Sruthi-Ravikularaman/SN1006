@@ -439,7 +439,7 @@ def Phi_pp_gamma(E_gamma, J_CRp, n):
     # E_gamma in MeV
     def integrand(T):
         # T in MeV
-        g_diff_sigma = gamma_diff_sigma(T, E_gamma, False) # in cm2 MeV-1
+        g_diff_sigma = gamma_diff_sigma(T, E_gamma, True) # in cm2 MeV-1
         f_in = J_CRp(T) # in MeV-1 cm-2 s-1 sr-1
         return g_diff_sigma * f_in # MeV-2 s-1 sr-1
     T_p_min, T_p_max = T_p_ext(E_gamma)
