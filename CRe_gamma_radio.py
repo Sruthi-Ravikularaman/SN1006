@@ -4,6 +4,7 @@ from scipy.integrate import quad
 
 #%% Constants
 
+MeV_to_erg = 1.602e-6 
 c = 3e10 # in cm/s, light velocity
 m_p = 938.272 # in MeV, proton mass
 m_e = 0.511  # in MeV
@@ -44,13 +45,13 @@ def integrate(f, x_min, x_max, N_pts = 500):
 
 #%% Synchroton radiation
 
-def syn_photon_E(T_e):
+def syn_photon_E(T_e, B_mG):
     T_e_TeV = T_e*(1e-6)
-    return 0.02*(T_e_TeV**2)*1e-3 #in MeV
+    return 0.02 * B_mG * (T_e_TeV**2) * 1e-3 #in MeV
 
 
-def E_c(T_e):
-    return syn_photon_E(T_e)/0.29 #MeV
+def E_c(T_e, B_mG):
+    return syn_photon_E(T_e, B_mG)/0.29 #MeV
 
 
 def R(x):
@@ -59,18 +60,58 @@ def R(x):
     return num/sqrt(den_2)
 
 
-def Phi_syn(E, J_CRe, B_mG):
+def Phi_e_syn(E, J_CRe, del_e, Ae, Te_c, B_mG):
     def integrand(T_e):
-        x = E/E_c(T_e)
-        J_val = J_CRe(T_e) # MeV-1 cm-3
+        x = E/E_c(T_e, B_mG)
+        J_val = J_CRe(T_e, del_e, Ae, Te_c) # MeV-1 cm-3
         R_val = R(x)
         return J_val*R_val  #MeV-1 cm-3
-    integ = integrate(integrand, 1e2, 1e12) #cm-3
+    integ = integrate(integrand, 1e-2, 1e12) #cm-3
+    e3B_0_MeV = B_mG * 4.3e-20
+    pre = (sqrt(3)/(2*pi))*(e3B_0_MeV/m_e)*(1/(h_bar*E)) #MeV-1 s-1
+    emi = pre * integ
+    return E * E * emi * MeV_to_erg #erg s-1 cm-3
+
+def Phi_e_syn_1(E, J_CRe, del_e, Ae, Te_c, B_mG):
+    def integrand(T_e):
+        x = E/E_c(T_e, B_mG)
+        J_val = J_CRe(T_e, del_e, Ae, Te_c) # MeV-1 cm-3
+        R_val = R(x)
+        return J_val*R_val  #MeV-1 cm-3
+    integ = integrate(integrand, 1e-2, 1e12) #cm-3
     e3B_0_MeV = B_mG * 4.3e-20
     pre = (sqrt(3)/(2*pi))*(e3B_0_MeV/m_e)*(1/(h_bar*E)) #MeV-1 s-1
     emi = pre * integ
     return emi #MeV-1 s-1 cm-3
 
+def Phi_syn_2(E, J_CRe_m, B_mG):
+    T_e_min, T_e_max = 1e2, 1e12
+    p_min, p_max = np.sqrt((T_e_min ** 2) + (2 * m_e * T_e_min)), np.sqrt((T_e_max ** 2) + (2 * m_e * T_e_max))
+    def integrand(p):
+        T_e = np.sqrt((p ** 2) + (m_e ** 2)) - m_e
+        x = E/E_c(T_e)
+        J_val = J_CRe_m(p) # MeV-3 cm-3
+        R_val = R(x)
+        return (p**2)*J_val * R_val  #MeV-1 cm-3
+    integ = integrate(integrand, p_min, p_max) #cm-3
+    e3B_0_MeV = B_mG * 4.3e-20 #Mev2
+    pre = (sqrt(3)/(2*pi))*(e3B_0_MeV/m_e)*(1/(h_bar*E)) #*(1/4*pi)*(1/(h_bar*E)) #MeV-1 s-1
+    emi = pre * integ # MeV-1 cm-3 s-1
+    return emi #MeV-1 cm-3 s-1
+
+def Phi_syn_3(E, J_CRe, B_mG):
+    T_e_min, T_e_max = 1e2, 1e12
+    def integrand(T_e):
+        x = E/E_c(T_e)
+        J_val = J_CRe(T_e)/(4*np.pi) # MeV-1 cm-3
+        R_val = R(x)
+        return J_val*R_val #MeV-1 cm-3
+    integ = integrate(integrand, T_e_min, T_e_max) #cm-3
+    e3B = B_mG * 4.3e-20
+    pre = (sqrt(3)/(2*pi))*(e3B/m_e) #*(1/(h_bar*E)) #MeV-1 s-1
+    emi = pre * integ
+    return emi #MeV-1 s-1 cm-3
+    
 
 #%% Non-thermal Bremsstrahlung emission
 
@@ -89,14 +130,23 @@ def sigma_scat_diff(E_gamma, E_e):
     return pre*(term_1+term_2)/E_gamma
 
 
-def Phi_e_rel_brem(E, J_CRe, n):
+def Phi_e_rel_brem(E, J_CRe, del_e, Ae, Te_c, n):
     def integrand(T_e):
         sig = sigma_scat_diff(E, T_e) # in cm2 MeV-1
-        F = J_CRe(T_e) # in MeV-1 cm-3
+        F = J_CRe(T_e, del_e, Ae, Te_c) # in MeV-1 cm-3
         return sig * F # in cm-1 MeV-2
     integ = integrate(integrand, E, 1e12) # in MeV-1 cm-1
     emi = n * c * integ  # MeV-1 cm-3 s-1
-    return emi
+    return E * E * emi * MeV_to_erg #erg cm-3 s-1
+
+def Phi_e_rel_brem_1(E, J_CRe, del_e, Ae, Te_c, n):
+    def integrand(T_e):
+        sig = sigma_scat_diff(E, T_e) # in cm2 MeV-1
+        F = J_CRe(T_e, del_e, Ae, Te_c) # in MeV-1 cm-3
+        return sig * F # in cm-1 MeV-2
+    integ = integrate(integrand, E, 1e12) # in MeV-1 cm-1
+    emi = n * c * integ  # MeV-1 cm-3 s-1
+    return emi #MeV-1 cm-3 s-1
 
 
 #%% Inverse Compton gamma emissivity
@@ -159,15 +209,16 @@ w_star = h_cgs*c/(1e-4) #g cm2 s-2
 T_star = 0.255*w_star/k_B_cgs
 
 
-def N_iso_ph_N(E_ph, J_CRe, T, k_dil):
+def Phi_e_IC(E_ph, J_CRe, del_e, Ae, Te_c, T, k_dil):
     def integrand(E_e):
-        return N_iso(E_ph, E_e, T, k_dil) * J_CRe(E_e) #  MeV-2 cm-3 s-1
+        return N_iso(E_ph, E_e, T, k_dil) * J_CRe(E_e, del_e, Ae, Te_c) #  MeV-2 cm-3 s-1
+    E_e_min = E_ph
+    E_e_max = 1e12 #MeV
+    return E_ph * E_ph * integrate(integrand, E_e_min, E_e_max) * MeV_to_erg # erg cm-3 s-1
+
+def Phi_e_IC_1(E_ph, J_CRe, del_e, Ae, Te_c, T, k_dil):
+    def integrand(E_e):
+        return N_iso(E_ph, E_e, T, k_dil) * J_CRe(E_e, del_e, Ae, Te_c) #  MeV-2 cm-3 s-1
     E_e_min = E_ph
     E_e_max = 1e12 #MeV
     return integrate(integrand, E_e_min, E_e_max) # MeV-1 cm-3 s-1
-
-
-def Phi_e_IC(E, J_CRe, T, k_dil):
-    N_iso_term = N_iso_ph_N(E, J_CRe, T, k_dil) # MeV-1 cm-3 s-1
-    return N_iso_term # MeV-1 cm-3 s-1
-

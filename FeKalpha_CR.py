@@ -8,7 +8,7 @@ Created on Thu Apr 28 11:22:54 2022
 
 import numpy as np
 from math import pi
-from ionization_tools import integrate, velocity
+
 
 
 m_p = 938.272 # in MeV, proton mass
@@ -18,6 +18,52 @@ M_gcr = 4.4e7*M_sol
 m_H = 1.67e-27 # kg
 m_avg = 1.4*m_H
 D_gcr = 8.5*(3e21) # cm
+c = 3e10
+
+
+def velocity(E_kin, rest_mass):
+    '''
+    Gives the velocity, it's ratio with c and Lorentz factor.
+
+    Parameters
+    ----------
+    E_kin : float
+        Kinetic energy of particle in MeV.
+    rest_mass : float
+        Rest mass energy of particle in MeV.
+
+    Returns
+    -------
+    v : float
+        Particle velocity in cm s^-1.
+    beta : float
+        v/c.
+    gamma : float
+        Lorentz factor.
+
+    '''
+    E_kin = E_kin
+    rest_mass = rest_mass
+    gamma = 1+(E_kin/rest_mass)
+    beta = np.sqrt(1-(1/(gamma**2)))
+    v = c*beta
+    return v, beta, gamma
+
+def integrate(f, x_min, x_max, N_pts = 500):
+    g = np.vectorize(f)
+    if x_min==x_max:
+        int_value=0
+    else:
+        if x_min == 0:
+            z_min = np.log10(1e-50)
+        else:
+            z_min = np.log10(x_min)
+        z_max = np.log10(x_max)
+        int_range = np.log(np.logspace(z_min, z_max, N_pts))
+        mid_points = (int_range[:-1]+int_range[1:])/2
+        y_mid_points = np.exp(mid_points)*g(np.exp(mid_points))
+        int_value = np.sum(y_mid_points*np.diff(int_range))
+    return int_value
 
 
 #%% Extract cross-section data
@@ -53,17 +99,20 @@ def sigma_64_e(E):
 
 #%% Fe K Alpha emissions
 
-def Flux_Fe_64_p(T_c, f_p, norm):
+
+def Phi_Fe_64_p(T_p_i, J_CRp, del_p, Ap, Tp_c, M_cl, eta_Fe):
     def integrand(T):
         v,_,_ = velocity(T, m_p)
-        return sigma_64_p(T)*v*f_p(T)
-    integ = integrate(integrand, T_c, 1e9)
+        return sigma_64_p(T) * v * J_CRp(T, del_p, Ap, Tp_c)
+    integ = integrate(integrand, T_p_i, 1e12)
+    norm = M_cl * eta_Fe / m_avg
     return norm*integ
 
 
-def Flux_Fe_64_e(T_c, f_e, norm):
+def Phi_Fe_64_e(T_e_i, J_CRe, del_e, Ae, Te_c, M_cl, eta_Fe):
     def integrand(T):
         v,_,_ = velocity(T, m_e)
-        return sigma_64_e(T)*v*f_e(T)
-    integ = integrate(integrand, T_c, 1e9)
+        return sigma_64_e(T) * v * J_CRe(T, del_e, Ae, Te_c)
+    integ = integrate(integrand, T_e_i, 1e12)
+    norm = M_cl * eta_Fe / m_avg
     return norm*integ

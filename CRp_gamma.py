@@ -9,6 +9,7 @@ from scipy.integrate import quad
 
 
 #%%  Useful definitions
+MeV_to_erg = 1.602e-6 
 m_p = 938.272 # in MeV, proton mass
 m_p_ev = 938.272e6 # in eV
 m_pi = 134.977 # in MeV, neutral pion mass
@@ -435,14 +436,28 @@ def gamma_diff_sigma(T_p, E_gamma, enh=True):
 
 #%% Gamma-ray flux
 
-def Phi_pp_gamma(E_gamma, J_CRp, n):
+def Phi_pp_gamma(E_gamma, J_CRp, del_p, Ap, Tp_c, n):
     # E_gamma in MeV
     def integrand(T):
         # T in MeV
+        v = velocity(T, m_p)[0]
         g_diff_sigma = gamma_diff_sigma(T, E_gamma, True) # in cm2 MeV-1
-        f_in = J_CRp(T) # in MeV-1 cm-2 s-1 sr-1
+        f_in = v * J_CRp(T, del_p, Ap, Tp_c) / (4 * np.pi) # MeV-1 cm-3 to  MeV-1 cm-2 s-1 sr-1
         return g_diff_sigma * f_in # MeV-2 s-1 sr-1
     T_p_min, T_p_max = T_p_ext(E_gamma)
     integ = integrate(integrand, T_p_min, T_p_max) # MeV-1 s-1 sr-1
     emi = 4 * np.pi * n * integ # MeV^-1 cm^-3 s^-1 
-    return emi
+    return E_gamma * E_gamma * emi * MeV_to_erg # erg cm-3 s-1
+
+def Phi_pp_gamma_1(E_gamma, J_CRp, del_p, Ap, Tp_c, n):
+    # E_gamma in MeV
+    def integrand(T):
+        # T in MeV
+        v = velocity(T, m_p)[0]
+        g_diff_sigma = gamma_diff_sigma(T, E_gamma, True) # in cm2 MeV-1
+        f_in = v * J_CRp(T, del_p, Ap, Tp_c) / (4 * np.pi) # MeV-1 cm-3 to  MeV-1 cm-2 s-1 sr-1
+        return g_diff_sigma * f_in # MeV-2 s-1 sr-1
+    T_p_min, T_p_max = T_p_ext(E_gamma)
+    integ = integrate(integrand, T_p_min, T_p_max) # MeV-1 s-1 sr-1
+    emi = 4 * np.pi * n * integ # MeV^-1 cm^-3 s^-1 
+    return emi # MeV-1 cm-3 s-1
