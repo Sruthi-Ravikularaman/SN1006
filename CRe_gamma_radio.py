@@ -24,6 +24,7 @@ k_B = 8.6173e-11 # MeV K-1
 k_B_cgs = 1.3807e-16 # cm2 g s-2 K-1
 m_el = 9.1094e-28 #g
 r_0 = e**2/(m_el*(c**2)) # cm electron radius
+h_bar_erg = 1.0545919e-27 #erg s
 
 
 def integrate(f, x_min, x_max, N_pts = 500):
