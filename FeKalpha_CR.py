@@ -100,19 +100,19 @@ def sigma_64_e(E):
 #%% Fe K Alpha emissions
 
 
-def Phi_Fe_64_p(T_p_i, J_CRp, del_p, Ap, Tp_c, M_cl, eta_Fe):
+def Phi_Fe_64_p(T_p_i, J_CRp, del_p, Ap, Tp_c, M_cl):
     def integrand(T):
         v,_,_ = velocity(T, m_p)
         return sigma_64_p(T) * v * J_CRp(T, del_p, Ap, Tp_c)
     integ = integrate(integrand, T_p_i, 1e12)
-    norm = M_cl * eta_Fe / m_avg
+    norm = M_cl / m_avg
     return norm*integ
 
 
-def Phi_Fe_64_e(T_e_i, J_CRe, del_e, Ae, Te_c, M_cl, eta_Fe):
+def Phi_Fe_64_e(T_e_i, J_CRe, del_e, Ae, Te_c, M_cl):
     def integrand(T):
         v,_,_ = velocity(T, m_e)
         return sigma_64_e(T) * v * J_CRe(T, del_e, Ae, Te_c)
     integ = integrate(integrand, T_e_i, 1e12)
-    norm = M_cl * eta_Fe / m_avg
+    norm = M_cl / m_avg
     return norm*integ

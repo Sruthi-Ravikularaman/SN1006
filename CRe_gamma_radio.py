@@ -25,6 +25,7 @@ k_B_cgs = 1.3807e-16 # cm2 g s-2 K-1
 m_el = 9.1094e-28 #g
 r_0 = e**2/(m_el*(c**2)) # cm electron radius
 h_bar_erg = 1.0545919e-27 #erg s
+sigma_T = 6.652e-25 #cm2
 
 
 def integrate(f, x_min, x_max, N_pts = 500):
@@ -72,82 +73,27 @@ def Phi_e_syn(E, J_CRe, del_e, Ae, Te_c, B_mG):
     pre = (sqrt(3)/(2*pi))*(e3B_0_MeV/m_e)*(1/(h_bar*E)) #MeV-1 s-1
     emi = pre * integ
     return E * E * emi * MeV_to_erg #erg s-1 cm-3
-
-def Phi_e_syn_1(E, J_CRe, del_e, Ae, Te_c, B_mG):
-    def integrand(T_e):
-        x = E/E_c(T_e, B_mG)
-        J_val = J_CRe(T_e, del_e, Ae, Te_c) # MeV-1 cm-3
-        R_val = R(x)
-        return J_val*R_val  #MeV-1 cm-3
-    integ = integrate(integrand, 1e-2, 1e12) #cm-3
-    e3B_0_MeV = B_mG * 4.3e-20
-    pre = (sqrt(3)/(2*pi))*(e3B_0_MeV/m_e)*(1/(h_bar*E)) #MeV-1 s-1
-    emi = pre * integ
-    return emi #MeV-1 s-1 cm-3
-
-def Phi_syn_2(E, J_CRe_m, B_mG):
-    T_e_min, T_e_max = 1e2, 1e12
-    p_min, p_max = np.sqrt((T_e_min ** 2) + (2 * m_e * T_e_min)), np.sqrt((T_e_max ** 2) + (2 * m_e * T_e_max))
-    def integrand(p):
-        T_e = np.sqrt((p ** 2) + (m_e ** 2)) - m_e
-        x = E/E_c(T_e)
-        J_val = J_CRe_m(p) # MeV-3 cm-3
-        R_val = R(x)
-        return (p**2)*J_val * R_val  #MeV-1 cm-3
-    integ = integrate(integrand, p_min, p_max) #cm-3
-    e3B_0_MeV = B_mG * 4.3e-20 #Mev2
-    pre = (sqrt(3)/(2*pi))*(e3B_0_MeV/m_e)*(1/(h_bar*E)) #*(1/4*pi)*(1/(h_bar*E)) #MeV-1 s-1
-    emi = pre * integ # MeV-1 cm-3 s-1
-    return emi #MeV-1 cm-3 s-1
-
-def Phi_syn_3(E, J_CRe, B_mG):
-    T_e_min, T_e_max = 1e2, 1e12
-    def integrand(T_e):
-        x = E/E_c(T_e)
-        J_val = J_CRe(T_e)/(4*np.pi) # MeV-1 cm-3
-        R_val = R(x)
-        return J_val*R_val #MeV-1 cm-3
-    integ = integrate(integrand, T_e_min, T_e_max) #cm-3
-    e3B = B_mG * 4.3e-20
-    pre = (sqrt(3)/(2*pi))*(e3B/m_e) #*(1/(h_bar*E)) #MeV-1 s-1
-    emi = pre * integ
-    return emi #MeV-1 s-1 cm-3
     
 
 #%% Non-thermal Bremsstrahlung emission
 
-def sigma_scat_simple(E_gamma):
-    m = 2e-24 # g
-    tau_r = 66 # g/cm2
-    return m/(tau_r*E_gamma)
-
-
-def sigma_scat_diff(E_gamma, E_e):
-    phi_1 = np.log((2*E_e/m_e)*(E_e-E_gamma)/E_gamma)-(1/2)
-    phi_2 = -2*phi_1/3
-    term_1 = (1+(1-(E_gamma/E_e))**2)*phi_1
-    term_2 = (1-(E_gamma/E_e))*phi_2
-    pre = 4*alpha*(r_0**2)
-    return pre*(term_1+term_2)/E_gamma
+def sigma_scat(E_gamma, E_e):
+    log_term = np.log((2 * E_e / m_e) * ((E_e - E_gamma) / E_gamma))
+    phi = 4 * (log_term - (1 / 2))
+    term_1 =  (1 + np.power(1 - (E_gamma / E_e), 2)) * phi
+    term_2 = - (2 / 3) * (1 - (E_gamma / E_e)) * phi
+    pre = (3 / (8 * np.pi)) * alpha * sigma_T 
+    return pre * (term_1 + term_2)
 
 
 def Phi_e_rel_brem(E, J_CRe, del_e, Ae, Te_c, n):
     def integrand(T_e):
-        sig = sigma_scat_diff(E, T_e) # in cm2 MeV-1
+        sig = sigma_scat(E, T_e) * 1e6  # in cm2 MeV-1
         F = J_CRe(T_e, del_e, Ae, Te_c) # in MeV-1 cm-3
         return sig * F # in cm-1 MeV-2
     integ = integrate(integrand, E, 1e12) # in MeV-1 cm-1
     emi = n * c * integ  # MeV-1 cm-3 s-1
     return E * E * emi * MeV_to_erg #erg cm-3 s-1
-
-def Phi_e_rel_brem_1(E, J_CRe, del_e, Ae, Te_c, n):
-    def integrand(T_e):
-        sig = sigma_scat_diff(E, T_e) # in cm2 MeV-1
-        F = J_CRe(T_e, del_e, Ae, Te_c) # in MeV-1 cm-3
-        return sig * F # in cm-1 MeV-2
-    integ = integrate(integrand, E, 1e12) # in MeV-1 cm-1
-    emi = n * c * integ  # MeV-1 cm-3 s-1
-    return emi #MeV-1 cm-3 s-1
 
 
 #%% Inverse Compton gamma emissivity
@@ -223,3 +169,77 @@ def Phi_e_IC_1(E_ph, J_CRe, del_e, Ae, Te_c, T, k_dil):
     E_e_min = E_ph
     E_e_max = 1e12 #MeV
     return integrate(integrand, E_e_min, E_e_max) # MeV-1 cm-3 s-1
+
+
+## Other questionable versions
+
+def Phi_e_syn_1(E, J_CRe, del_e, Ae, Te_c, B_mG):
+    def integrand(T_e):
+        x = E/E_c(T_e, B_mG)
+        J_val = J_CRe(T_e, del_e, Ae, Te_c) # MeV-1 cm-3
+        R_val = R(x)
+        return J_val*R_val  #MeV-1 cm-3
+    integ = integrate(integrand, 1e-2, 1e12) #cm-3
+    e3B_0_MeV = B_mG * 4.3e-20
+    pre = (sqrt(3)/(2*pi))*(e3B_0_MeV/m_e)*(1/(h_bar*E)) #MeV-1 s-1
+    emi = pre * integ
+    return emi #MeV-1 s-1 cm-3
+
+def Phi_syn_2(E, J_CRe_m, B_mG):
+    T_e_min, T_e_max = 1e2, 1e12
+    p_min, p_max = np.sqrt((T_e_min ** 2) + (2 * m_e * T_e_min)), np.sqrt((T_e_max ** 2) + (2 * m_e * T_e_max))
+    def integrand(p):
+        T_e = np.sqrt((p ** 2) + (m_e ** 2)) - m_e
+        x = E/E_c(T_e)
+        J_val = J_CRe_m(p) # MeV-3 cm-3
+        R_val = R(x)
+        return (p**2)*J_val * R_val  #MeV-1 cm-3
+    integ = integrate(integrand, p_min, p_max) #cm-3
+    e3B_0_MeV = B_mG * 4.3e-20 #Mev2
+    pre = (sqrt(3)/(2*pi))*(e3B_0_MeV/m_e)*(1/(h_bar*E)) #*(1/4*pi)*(1/(h_bar*E)) #MeV-1 s-1
+    emi = pre * integ # MeV-1 cm-3 s-1
+    return emi #MeV-1 cm-3 s-1
+
+def Phi_syn_3(E, J_CRe, B_mG):
+    T_e_min, T_e_max = 1e2, 1e12
+    def integrand(T_e):
+        x = E/E_c(T_e)
+        J_val = J_CRe(T_e)/(4*np.pi) # MeV-1 cm-3
+        R_val = R(x)
+        return J_val*R_val #MeV-1 cm-3
+    integ = integrate(integrand, T_e_min, T_e_max) #cm-3
+    e3B = B_mG * 4.3e-20
+    pre = (sqrt(3)/(2*pi))*(e3B/m_e) #*(1/(h_bar*E)) #MeV-1 s-1
+    emi = pre * integ
+    return emi #MeV-1 s-1 cm-3
+
+def sigma_scat_simple(E_gamma):
+    m = 2e-24 # g
+    tau_r = 66 # g/cm2
+    return m/(tau_r*E_gamma)
+
+def sigma_scat_diff(E_gamma, E_e):
+    phi_1 = np.log((2*E_e/m_e)*(E_e-E_gamma)/E_gamma)-(1/2)
+    phi_2 = -2*phi_1/3
+    term_1 = (1+(1-(E_gamma/E_e))**2)*phi_1
+    term_2 = (1-(E_gamma/E_e))*phi_2
+    pre = 4*alpha*(r_0**2)
+    return pre*(term_1+term_2)/E_gamma
+
+def Phi_e_rel_brem_1(E, J_CRe, del_e, Ae, Te_c, n):
+    def integrand(T_e):
+        sig = sigma_scat_diff(E, T_e) # in cm2 MeV-1
+        F = J_CRe(T_e, del_e, Ae, Te_c) # in MeV-1 cm-3
+        return sig * F # in cm-1 MeV-2
+    integ = integrate(integrand, E, 1e12) # in MeV-1 cm-1
+    emi = n * c * integ  # MeV-1 cm-3 s-1
+    return emi #MeV-1 cm-3 s-1
+
+def Phi_e_rel_brem_2(E, J_CRe, del_e, Ae, Te_c, n):
+    def integrand(T_e):
+        sig = sigma_scat_diff(E, T_e) # in cm2 MeV-1
+        F = J_CRe(T_e, del_e, Ae, Te_c) # in MeV-1 cm-3
+        return sig * F # in cm-1 MeV-2
+    integ = integrate(integrand, E, 1e12) # in MeV-1 cm-1
+    emi = n * c * integ  # MeV-1 cm-3 s-1
+    return E * E * emi * MeV_to_erg #erg cm-3 s-1
