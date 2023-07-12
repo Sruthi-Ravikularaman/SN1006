@@ -83,12 +83,12 @@ def sigma_scat(E_gamma, E_e):
     term_1 =  (1 + np.power(1 - (E_gamma / E_e), 2)) * phi
     term_2 = - (2 / 3) * (1 - (E_gamma / E_e)) * phi
     pre = (3 / (8 * np.pi)) * alpha * sigma_T 
-    return pre * (term_1 + term_2)
+    return pre * (term_1 + term_2) / E_gamma # cm2 MeV-1
 
 
 def Phi_e_rel_brem(E, J_CRe, del_e, Ae, Te_c, n):
     def integrand(T_e):
-        sig = sigma_scat(E, T_e) * 1e6  # in cm2 MeV-1
+        sig = sigma_scat(E, T_e + m_e)  # in cm2 MeV-1
         F = J_CRe(T_e, del_e, Ae, Te_c) # in MeV-1 cm-3
         return sig * F # in cm-1 MeV-2
     integ = integrate(integrand, E, 1e12) # in MeV-1 cm-1

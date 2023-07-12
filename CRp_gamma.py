@@ -132,8 +132,8 @@ def E_pi_max_LAB(T_p):
     """
     beta_CM, lorentz_CM = relat_CM(T_p)
     E_pi, P_pi = pi_CM(T_p)
-    sum = E_pi+(P_pi*beta_CM)
-    E_pi_max = lorentz_CM*sum
+    EP_pi = E_pi+(P_pi*beta_CM)
+    E_pi_max = lorentz_CM*EP_pi
     return E_pi_max
 
 
